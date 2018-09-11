@@ -1,4 +1,5 @@
 """This module contains all functions for testing the BLACKBOX algorithm."""
+import pickle as pkl
 import os
 
 from scipy.optimize import rosen
@@ -7,13 +8,15 @@ import pytest
 
 from blackbox.tests.material.blackbox_original import search as bb_search
 from blackbox.replacements_interface import get_capital_phi
+from blackbox.tests.auxiliary import get_valid_request
 from blackbox.replacements_interface import fit_full
 from blackbox.replacements_interface import spread
+from blackbox.tests.auxiliary import EXECUTORS
 from blackbox.algorithm import latin
 from blackbox.auxiliary import rbf
 from blackbox import search
-from blackbox.tests.auxiliary import get_valid_request
 
+TEST_RESOURCES = os.path.realpath(__file__).replace('test_blackbox.py', '') + '/material'
 PYTHON_FNAME = '.blackbox.testing.python'
 
 
@@ -32,8 +35,7 @@ def test_1():
     rslt_base = None
     for strategy in ['mpi', 'mp']:
 
-        np.random.seed(123)
-        rslt = search(rosen, box, n, m, batch, strategy)
+        rslt = search(rosen, box, n, m, batch, strategy, seed=123)
 
         if rslt_base is None:
             rslt_base = rslt
@@ -47,8 +49,7 @@ def test_2():
 
     rslt_base = None
     for batch in range(1, 5):
-        np.random.seed(123)
-        rslt = search(rosen, box, n, m, batch, strategy, legacy=True)
+        rslt = search(rosen, box, n, m, batch, strategy, seed=123)
 
         if rslt_base is None:
             rslt_base = rslt
@@ -71,8 +72,7 @@ def test_3():
     np.random.seed(123)
     alg_original = bb_search(rosen, box, n, m, batch, resfile='output.csv')
 
-    np.random.seed(123)
-    alg_revised = search(rosen, box, n, m, batch, strategy, legacy=True)
+    alg_revised = search(rosen, box, n, m, batch, strategy, legacy=True, seed=123)
 
     np.testing.assert_almost_equal(alg_original, alg_revised)
 
@@ -123,8 +123,7 @@ def test_5():
         if is_python:
             open(PYTHON_FNAME, 'a').close()
 
-        np.random.seed(123)
-        rslt = search(rosen, box, n, m, batch, strategy)
+        rslt = search(rosen, box, n, m, batch, strategy, seed=123)
 
         if rslt_base is None:
             rslt_base = rslt
@@ -133,3 +132,18 @@ def test_5():
 
         if os.path.exists(PYTHON_FNAME):
             os.remove(PYTHON_FNAME)
+
+
+def test_6():
+    """This test function runs a subset of the regression tests."""
+    vault = pkl.load(open(TEST_RESOURCES + '/regression_vault.blackbox.pkl', 'rb'))
+
+    for idx in np.random.choice(len(vault), size=5):
+        request, rslt = vault[idx]
+
+        # We need to adjust the strategy if there is no MPI available.
+        if request[-1] not in EXECUTORS:
+            request[-1] = 'mp'
+
+        stat = search(*request, seed=123)
+        np.testing.assert_equal(rslt, stat)

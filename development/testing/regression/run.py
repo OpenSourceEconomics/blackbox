@@ -3,41 +3,25 @@ import pickle as pkl
 from scipy.optimize import rosen
 import numpy as np
 
-from blackbox.algorithm import search as pei_search
-from blackbox.auxiliary import get_executor
-
+from blackbox import search
+from blackbox.tests.auxiliary import get_valid_request
 FNAME_VAULT = 'regression_vault.blackbox.pkl'
 
 
-def get_request(seed):
+num_tests = 100
 
-    np.random.seed(seed)
+tests = []
+for seed in range(num_tests):
 
-    d = np.random.randint(2, 5)
-    box = [[-10., 10.]] * d
+    request = [rosen] + list(get_valid_request())[1:]
+    rslt = search(*request, seed=123)
+    tests.append([request, rslt])
 
-    n = d + np.random.randint(0, 5)
-    m = np.random.randint(2, 10)
-    batch = np.random.randint(2, 5)
-    executor = get_executor('mp')
-
-    return box, n, m, batch, executor
-#
-# tests = []
-# for seed in range(100):
-#
-#     box, n, m, batch, executor = get_request(seed)
-#     rslt = pei_search(rosen, box, n, m, batch, executor, 'mp', 'blackbox.respy.csv')
-#
-#     tests.append([seed, rslt])
-#
-# pkl.dump(tests, open(FNAME_VAULT, 'wb'))
+pkl.dump(tests, open(FNAME_VAULT, 'wb'))
 
 
 for test in pkl.load(open(FNAME_VAULT, 'rb')):
-    seed, rslt = test
-
-    box, n, m, batch, executor = get_request(seed)
-    stat = pei_search(rosen, box, n, m, batch, executor, 'mp')
+    request, rslt = test
+    stat = search(*request, seed=123)
 
     np.testing.assert_equal(rslt, stat)

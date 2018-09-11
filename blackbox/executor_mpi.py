@@ -30,6 +30,9 @@ class _MpiPool(object):
         num_free = np.array(num_free, dtype='int32')
         comm.Bcast([num_free, MPI.INT], root=MPI.ROOT)
 
+        # TODO: All slaves should send a message that they are ready and then we can also remove
+        # the *.pkl.
+
         # Store class attributes for future references.
         self.attr = dict()
         self.attr['num_free'] = None

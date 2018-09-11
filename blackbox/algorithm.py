@@ -10,7 +10,8 @@ from blackbox.auxiliary import latin
 from blackbox.auxiliary import rbf
 from blackbox.auxiliary import get_executor
 
-def search(crit_func, box, n, m, batch, strategy, legacy=False, rho0=0.5, p=1.0, nrand=10000,
+def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=0.5, p=1.0, \
+                                                                                    nrand=10000,
            nrand_frac=0.05):
     """
     Minimize given expensive black-box function and save results into text file.
@@ -42,6 +43,9 @@ def search(crit_func, box, n, m, batch, strategy, legacy=False, rho0=0.5, p=1.0,
         Allows the user to use various parallelisation tools
         as dask.distributed or pathos.
     """
+    if seed is not None:
+        np.random.seed(seed)
+
     # We distinguish parallelism between MPI and MP implementations.
     # space size
     d = len(box)
@@ -54,7 +58,7 @@ def search(crit_func, box, n, m, batch, strategy, legacy=False, rho0=0.5, p=1.0,
         m = m - m % batch + batch
 
     # TODO: This does possibly start more procs then requested, this should be revisited.
-    executor = get_executor(strategy, batch, crit_func)
+    executor = get_executor(strategy, d, batch, crit_func)
 
     # We are ready to define the auxiliary functions.
     cubetobox = partial(cubetobox_full, box, d)
@@ -85,7 +89,7 @@ def search(crit_func, box, n, m, batch, strategy, legacy=False, rho0=0.5, p=1.0,
 
     points[:, -1] = points[:, -1] / fmax
 
-    # This allows to request a simple grid search.
+    # This allows to request a simple search on a random grid.
     if m == 0:
         return bb_finalize(points, executor, strategy, fmax, cubetobox)
 

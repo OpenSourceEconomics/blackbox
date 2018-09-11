@@ -18,5 +18,4 @@ def get_valid_request():
     batch = np.random.randint(1, 5)
 
     strategy = np.random.choice(EXECUTORS)
-
     return d, box, n, m, batch, strategy

@@ -30,5 +30,6 @@ while True:
 
         func = crit_func(x_free_econ_eval)
         comm.Send([np.array(func), MPI.DOUBLE], dest=0, tag=rank)
+
     else:
         raise AssertionError

@@ -184,11 +184,11 @@ def rbf(points, T):
     return lam, b, a
 
 
-def get_executor(strategy, batch=None, crit_func=None):
+def get_executor(strategy, num_free=None, batch=None, crit_func=None):
     if strategy == 'mpi':
         # TODO: This needs to be cleanup by someone.
         pkl.dump(crit_func, open('.crit_func.blackbox.pkl', 'wb'))
-        executor = mpi_executor(batch)
+        executor = mpi_executor(batch, num_free)
     elif strategy == 'mp':
         executor = mp_executor()
     else:
