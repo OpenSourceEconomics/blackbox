@@ -1,6 +1,5 @@
 from functools import partial
 
-import scipy.optimize as op
 import numpy as np
 
 from blackbox.replacements_interface import fit_full
@@ -9,10 +8,11 @@ from blackbox.auxiliary import bb_finalize
 from blackbox.auxiliary import latin
 from blackbox.auxiliary import rbf
 from blackbox.auxiliary import get_executor
+from blackbox.auxiliary import fit_approx_model
 
-def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=0.5, p=1.0, \
-                                                                                    nrand=10000,
-           nrand_frac=0.05):
+
+def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=0.5, p=1.0,
+           nrand=10000, nrand_frac=0.05):
     """
     Minimize given expensive black-box function and save results into text file.
 
@@ -97,8 +97,8 @@ def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=
     if d % 2 == 0:
         v1 = np.pi ** (d / 2) / np.math.factorial(d / 2)
     else:
-        v1 = 2 * (4 * np.pi) ** ((d - 1) / 2) * np.math.factorial((d - 1) / 2) / np.math.factorial(
-            d)
+        v1 = 2 * (4 * np.pi) ** ((d - 1) / 2) * np.math.factorial((d - 1) / 2)
+        v1 /= np.math.factorial(d)
 
     # subsequent iterations (current subsequent iteration = i*batch+j)
     T = np.identity(d)
@@ -128,16 +128,7 @@ def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=
         # number of points for approximation and batch size by using a queue instead.
         # TODO: This is scalar at this point, other cores could evaluate other random points in
         # the meantime?
-
-        for j in range(batch):
-            r = ((rho0*((m-1.-(i*batch+j))/(m-1.))**p)/(v1*(n+i*batch+j)))**(1./d)
-            cons = [{'type': 'ineq', 'fun': lambda x, localk=k: np.linalg.norm(np.subtract(x, points[localk, 0:-1])) - r}
-                    for k in range(n+i*batch+j)]
-            while True:
-                minfit = op.minimize(fit, np.random.rand(d), method='SLSQP', bounds=[[0., 1.]]*d, constraints=cons)
-                if not np.isnan(minfit.x)[0]:
-                    break
-            points[n+i*batch+j, 0:-1] = np.copy(minfit.x)
+        points = fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points)
 
         if strategy == 'mpi':
             candidates = list(map(cubetobox, points[n+batch*i:n+batch*(i+1), 0:-1]))
@@ -146,7 +137,8 @@ def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=
             points[n + batch * i:n + batch * (i + 1), -1] = stat[:, 0]
         else:
             with executor() as e:
-                points[n+batch*i:n+batch*(i+1), -1] = list(e.map(crit_func, list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1])))) / fmax
+                candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
+                points[n+batch*i:n+batch*(i+1), -1] = list(e.map(crit_func, candidates)) / fmax
 
     points = bb_finalize(points, executor, strategy, fmax, cubetobox)
 

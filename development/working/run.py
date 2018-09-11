@@ -1,18 +1,15 @@
+from blackbox import search
+from scipy.optimize import rosen
+import cProfile
+import pstats
+d = 2
+box = [[-10, 10]] * d
+n = 100
+m = 10
+strategy = 'mp'
+batch = 20
 
-from blackbox.replacements_interface import spread
-from blackbox.algorithm import latin
-from blackbox.auxiliary import rbf
+cProfile.run('search(rosen, box, n, m, batch, strategy)', 'test.prof')
 
-import numpy as np
-
-d = 20
-n = 500
-
-points = np.zeros((n, d + 1))
-points[:, 0:-1] = latin(n, d)
-
-mat, eval_points = np.identity(d), np.random.rand(d)
-print("gonig in ")
-lam, b, a = rbf(points, mat)
-print("gonig out ")
-spread(points[:, 0:-1], n, d)
+p = pstats.Stats("test.prof")
+p.strip_dirs().sort_stats('cumulative').print_stats()

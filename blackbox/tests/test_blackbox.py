@@ -1,9 +1,12 @@
 """This module contains all functions for testing the BLACKBOX algorithm."""
+from subprocess import CalledProcessError
 import pickle as pkl
+import subprocess
 import os
 
 from scipy.optimize import rosen
 import numpy as np
+import socket
 import pytest
 
 from blackbox.tests.material.blackbox_original import search as bb_search
@@ -14,6 +17,7 @@ from blackbox.replacements_interface import spread
 from blackbox.tests.auxiliary import EXECUTORS
 from blackbox.algorithm import latin
 from blackbox.auxiliary import rbf
+from blackbox import PACKAGE_DIR
 from blackbox import search
 
 TEST_RESOURCES = os.path.realpath(__file__).replace('test_blackbox.py', '') + '/material'
@@ -25,7 +29,7 @@ def test_1():
     """This function tests that the BLACKBOX results are unaffected by the parallelization
     strategy."""
     # TODO: needs to be endogenixzed
-    d = 2#np.random.randint(2, 5)
+    d = 2  # np.random.randint(2, 5)
     box = [[-10., 10.]] * d
 
     n = d + np.random.randint(5, 10)
@@ -134,6 +138,7 @@ def test_5():
             os.remove(PYTHON_FNAME)
 
 
+@pytest.mark.skipif(socket.gethostname() != 'heracles', reason='only running on heracles')
 def test_6():
     """This test function runs a subset of the regression tests."""
     vault = pkl.load(open(TEST_RESOURCES + '/regression_vault.blackbox.pkl', 'rb'))
@@ -147,3 +152,21 @@ def test_6():
 
         stat = search(*request, seed=123)
         np.testing.assert_equal(rslt, stat)
+
+
+def test_7():
+    """This test runs flake8 to ensure the code quality. However, this is only relevant during
+    development."""
+    try:
+        import flake8    # noqa: F401
+    except ImportError:
+        return None
+
+    cwd = os.getcwd()
+    os.chdir(PACKAGE_DIR)
+    try:
+        subprocess.check_call(['flake8'])
+        os.chdir(cwd)
+    except CalledProcessError:
+        os.chdir(cwd)
+        raise CalledProcessError

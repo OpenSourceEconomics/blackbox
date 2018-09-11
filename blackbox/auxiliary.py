@@ -6,6 +6,7 @@ import shutil
 import glob
 import os
 
+import scipy.optimize as op
 import numpy as np
 
 from blackbox.replacements_interface import get_capital_phi
@@ -122,6 +123,23 @@ class AggregatorCls(object):
                 self.attr['num_eval'] += 1
 
 
+def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
+    """This function fits the approximate model."""
+
+    for j in range(batch):
+        r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (
+                v1 * (n + i * batch + j))) ** (1. / d)
+        cons = [{'type': 'ineq', 'fun': lambda x, localk=k: np.linalg.norm(
+            np.subtract(x, points[localk, 0:-1])) - r}
+                for k in range(n + i * batch + j)]
+        while True:
+            minfit = op.minimize(fit, np.random.rand(d), method='SLSQP', bounds=[[0., 1.]] * d,
+                                 constraints=cons)
+            if not np.isnan(minfit.x)[0]:
+                break
+        points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
+
+    return points
 
 
 def cleanup(is_start=False):

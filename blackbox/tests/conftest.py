@@ -17,6 +17,7 @@ def fresh_directory():
     """Each test is executed in a fresh directory."""
     os.chdir(tempfile.mkdtemp())
 
+
 @pytest.fixture(scope='function', autouse=True)
 def set_environment():
     """The testing setup can be determine."""
