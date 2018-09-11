@@ -126,6 +126,8 @@ def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=
         points = np.append(points, np.zeros((batch, d+1)), axis=0)
         # TODO: THe approximation depends on the batch size, Maybe it is a good idea to split
         # number of points for approximation and batch size by using a queue instead.
+        # TODO: This is scalar at this point, other cores could evaluate other random points in
+        # the meantime?
 
         for j in range(batch):
             r = ((rho0*((m-1.-(i*batch+j))/(m-1.))**p)/(v1*(n+i*batch+j)))**(1./d)
