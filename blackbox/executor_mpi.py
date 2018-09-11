@@ -10,14 +10,14 @@ if 'PMI_SIZE' in os.environ.keys():
         pass
 
 
-def mpi_executor(batch):
+def mpi_executor(batch, num_free):
 
-    return _MpiPool(batch)
+    return _MpiPool(batch, num_free)
 
 
 class _MpiPool(object):
 
-    def __init__(self, batch):
+    def __init__(self, batch, num_free):
         """This method initializes the pool of MPI slaves."""
         # Start an army of workers for evaluations of the criterion function.
         info = MPI.Info.Create()
@@ -25,6 +25,10 @@ class _MpiPool(object):
 
         file_ = os.path.dirname(os.path.realpath(__file__)) + '/executor_mpi_worker.py'
         comm = MPI.COMM_SELF.Spawn(sys.executable, args=[file_], maxprocs=batch, info=info)
+
+        # We need to inform everybody about the number of free parameters.
+        num_free = np.array(num_free, dtype='int32')
+        comm.Bcast([num_free, MPI.INT], root=MPI.ROOT)
 
         # Store class attributes for future references.
         self.attr = dict()

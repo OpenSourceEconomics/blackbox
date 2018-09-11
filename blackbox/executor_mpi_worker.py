@@ -9,8 +9,9 @@ comm = MPI.Comm.Get_parent()
 num_slaves, rank = comm.Get_size(), comm.Get_rank()
 
 crit_func = pkl.load(open('.crit_func.blackbox.pkl', 'rb'))
-# TODO: enodgenoize later
-num_free = 2  #est_obj.attr['paras_fixed'].count(False)
+
+num_free = np.array(0, dtype='int32')
+comm.Bcast([num_free, MPI.INT], root=0)
 
 while True:
 
