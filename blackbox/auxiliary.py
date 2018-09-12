@@ -1,4 +1,5 @@
 """This module hosts all auxiliary functions for running the BLACKBOX algorithm."""
+from functools import partial
 import pickle as pkl
 import warnings
 
@@ -12,7 +13,11 @@ from blackbox.executor_mp import mp_executor
 
 
 def cubetobox_full(box, d, x):
-    return [box[i][0]+(box[i][1]-box[i][0])*x[i] for i in range(d)]
+    """This function transfers the points back to their original sizes."""
+    rslt = list()
+    for i in range(d):
+        rslt.append(box[i][0] + (box[i][1] - box[i][0]) * x[i])
+    return rslt
 
 
 def latin(n, d):
@@ -54,21 +59,31 @@ def latin(n, d):
 
     return lh
 
+
 def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
     """This function fits the approximate model."""
+    def constraint_full(k, r, x):
+        return np.linalg.norm(np.subtract(x, points[k, 0:-1])) - r
 
     for j in range(batch):
-        r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (
-                v1 * (n + i * batch + j))) ** (1. / d)
-        cons = [{'type': 'ineq', 'fun': lambda x, localk=k: np.linalg.norm(
-            np.subtract(x, points[localk, 0:-1])) - r}
-                for k in range(n + i * batch + j)]
+        r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (v1 * (n + i * batch + j)))
+        r **= (1. / d)
+
+        # We need to construct a full set of bounds.
+        cons = list()
+        for k in range(n + i * batch + j):
+            constraint = partial(constraint_full, k, r)
+            cons.append({'type': 'ineq', 'fun': constraint})
+
+        bounds = [[0.0, 1.0]] * d
+
         while True:
-            minfit = op.minimize(fit, np.random.rand(d), method='SLSQP', bounds=[[0., 1.]] * d,
-                                 constraints=cons)
-            if not np.isnan(minfit.x)[0]:
+            start = np.random.rand(d)
+            rslt_x = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons).x
+            if not np.isnan(rslt_x)[0]:
                 break
-        points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
+
+        points[n + i * batch + j, 0:-1] = np.copy(rslt_x)
 
     return points
 
@@ -90,36 +105,36 @@ def rbf(points, T):
         Function that returns the value of the RBF-fit at a given point.
     """
     n = len(points)
-    d = len(points[0])-1
+    d = len(points[0]) - 1
 
     Phi = get_capital_phi(points[:, 0:-1], T, n, d)
 
-    P = np.ones((n, d+1))
+    P = np.ones((n, d + 1))
     P[:, 0:-1] = points[:, 0:-1]
 
     F = points[:, -1]
 
-    M = np.zeros((n+d+1, n+d+1))
+    M = np.zeros((n + d + 1, n + d + 1))
     M[0:n, 0:n] = Phi
-    M[0:n, n:n+d+1] = P
-    M[n:n+d+1, 0:n] = np.transpose(P)
+    M[0:n, n:n + d + 1] = P
+    M[n:n + d + 1, 0:n] = np.transpose(P)
 
-    v = np.zeros(n+d+1)
+    v = np.zeros(n + d + 1)
     v[0:n] = F
 
     try:
         sol = np.linalg.solve(M, v)
     except np.linalg.linalg.LinAlgError:
         warnings.warn('stabilization of BLACKBOX to avoid singular matrix')
-        sol = np.ones(n+d+1)
-    lam, b, a = sol[0:n], sol[n:n+d], sol[n+d]
+        sol = np.ones(n + d + 1)
+    lam, b, a = sol[0:n], sol[n:n + d], sol[n + d]
 
     return lam, b, a
 
 
 def get_executor(strategy, num_free=None, batch=None, crit_func=None):
+    """This function returns the executor for the evaluation of points."""
     if strategy == 'mpi':
-        # TODO: This needs to be cleanup by someone.
         pkl.dump(crit_func, open('.crit_func.blackbox.pkl', 'wb'))
         executor = mpi_executor(batch, num_free)
     elif strategy == 'mp':
@@ -131,7 +146,7 @@ def get_executor(strategy, num_free=None, batch=None, crit_func=None):
 
 
 def bb_finalize(points, executor, strategy, fmax, cubetobox):
-    # saving results into text file
+    """This functions finalizes the BLACKBOX algorithm."""
     points[:, 0:-1] = list(map(cubetobox, points[:, 0:-1]))
     points[:, -1] = points[:, -1]*fmax
     points = points[points[:, -1].argsort()]

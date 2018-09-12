@@ -28,18 +28,17 @@ PYTHON_FNAME = '.blackbox.testing.python'
 def test_1():
     """This function tests that the BLACKBOX results are unaffected by the parallelization
     strategy."""
-    # TODO: needs to be endogenixzed
-    d = 2  # np.random.randint(2, 5)
+    d = np.random.randint(2, 5)
     box = [[-10., 10.]] * d
 
     n = d + np.random.randint(5, 10)
-    m = np.random.randint(5, 25)
     batch = np.random.randint(1, 5)
+    m = np.random.randint(5, 25)
 
     rslt_base = None
     for strategy in ['mpi', 'mp']:
 
-        rslt = search(rosen, box, n, m, batch, strategy, seed=123)
+        rslt = search(rosen, box, n, m, batch, strategy)
 
         if rslt_base is None:
             rslt_base = rslt
@@ -53,11 +52,10 @@ def test_2():
 
     rslt_base = None
     for batch in range(1, 5):
-        rslt = search(rosen, box, n, m, batch, strategy, seed=123)
+        rslt = search(rosen, box, n, m, batch, strategy)
 
         if rslt_base is None:
             rslt_base = rslt
-
         np.testing.assert_almost_equal(rslt, rslt_base)
 
 
@@ -76,7 +74,7 @@ def test_3():
     np.random.seed(123)
     alg_original = bb_search(rosen, box, n, m, batch, resfile='output.csv')
 
-    alg_revised = search(rosen, box, n, m, batch, strategy, legacy=True, seed=123)
+    alg_revised = search(rosen, box, n, m, batch, strategy, legacy=True)
 
     np.testing.assert_almost_equal(alg_original, alg_revised)
 
@@ -127,11 +125,10 @@ def test_5():
         if is_python:
             open(PYTHON_FNAME, 'a').close()
 
-        rslt = search(rosen, box, n, m, batch, strategy, seed=123)
+        rslt = search(rosen, box, n, m, batch, strategy)
 
         if rslt_base is None:
             rslt_base = rslt
-
         np.testing.assert_almost_equal(rslt, rslt_base)
 
         if os.path.exists(PYTHON_FNAME):
@@ -150,7 +147,7 @@ def test_6():
         if request[-1] not in EXECUTORS:
             request[-1] = 'mp'
 
-        stat = search(*request, seed=123)
+        stat = search(*request)
         np.testing.assert_equal(rslt, stat)
 
 

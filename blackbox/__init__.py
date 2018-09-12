@@ -1,5 +1,7 @@
 import os
+
 from numpy import f2py
+
 PACKAGE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -19,6 +21,5 @@ try:
     import blackbox.replacements_f2py  # noqa: F401
 except ModuleNotFoundError:
     compile_f2py()
-
 
 from blackbox.algorithm import search  # noqa: F401

@@ -26,12 +26,15 @@ class _MpiPool(object):
         file_ = os.path.dirname(os.path.realpath(__file__)) + '/executor_mpi_worker.py'
         comm = MPI.COMM_SELF.Spawn(sys.executable, args=[file_], maxprocs=batch, info=info)
 
+        # We wait for everybody to be ready and then clean up the criterion function.
+        check_in = np.zeros(1, dtype='float')
+        for rank in range(batch):
+            comm.Recv([check_in, MPI.DOUBLE], source=rank, tag=MPI.ANY_TAG)
+        os.remove('.crit_func.blackbox.pkl')
+
         # We need to inform everybody about the number of free parameters.
         num_free = np.array(num_free, dtype='int32')
         comm.Bcast([num_free, MPI.INT], root=MPI.ROOT)
-
-        # TODO: All slaves should send a message that they are ready and then we can also remove
-        # the *.pkl.
 
         # Store class attributes for future references.
         self.attr = dict()

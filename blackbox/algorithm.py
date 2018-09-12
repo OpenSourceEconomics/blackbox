@@ -1,17 +1,18 @@
 from functools import partial
 
 import numpy as np
+import pyDOE
 
 from blackbox.replacements_interface import fit_full
+from blackbox.auxiliary import fit_approx_model
 from blackbox.auxiliary import cubetobox_full
+from blackbox.auxiliary import get_executor
 from blackbox.auxiliary import bb_finalize
 from blackbox.auxiliary import latin
 from blackbox.auxiliary import rbf
-from blackbox.auxiliary import get_executor
-from blackbox.auxiliary import fit_approx_model
 
 
-def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=0.5, p=1.0,
+def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0.5, p=1.0,
            nrand=10000, nrand_frac=0.05):
     """
     Minimize given expensive black-box function and save results into text file.
@@ -66,7 +67,6 @@ def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=
     # generating latin hypercube
     points = np.zeros((n, d + 1))
     if not legacy:
-        import pyDOE
         points[:, 0:-1] = pyDOE.lhs(d, samples=n)
     else:
         points[:, 0:-1] = latin(n, d)
@@ -110,20 +110,20 @@ def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=
             lam, b, a = rbf(points, np.identity(d))
             fit_noscale = partial(fit_full, lam, b, a, np.identity(d), points[:, 0:-1])
 
-            population = np.zeros((nrand, d+1))
+            population = np.zeros((nrand, d + 1))
             population[:, 0:-1] = np.random.rand(nrand, d)
             population[:, -1] = list(map(fit_noscale, population[:, 0:-1]))
 
-            cloud = population[population[:, -1].argsort()][0:int(nrand*nrand_frac), 0:-1]
+            cloud = population[population[:, -1].argsort()][0:int(nrand * nrand_frac), 0:-1]
             eigval, eigvec = np.linalg.eig(np.cov(np.transpose(cloud)))
-            T = [eigvec[:, j]/np.sqrt(eigval[j]) for j in range(d)]
-            T = T/np.linalg.norm(T)
+            T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
+            T = T / np.linalg.norm(T)
 
         # sampling next batch of points
         lam, b, a = rbf(points, T)
         fit = partial(fit_full, lam, b, a, T, points[:, 0:-1])
 
-        points = np.append(points, np.zeros((batch, d+1)), axis=0)
+        points = np.append(points, np.zeros((batch, d + 1)), axis=0)
         # TODO: THe approximation depends on the batch size, Maybe it is a good idea to split
         # number of points for approximation and batch size by using a queue instead.
         # TODO: This is scalar at this point, other cores could evaluate other random points in
@@ -131,14 +131,14 @@ def search(crit_func, box, n, m, batch, strategy, seed=None, legacy=False, rho0=
         points = fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points)
 
         if strategy == 'mpi':
-            candidates = list(map(cubetobox, points[n+batch*i:n+batch*(i+1), 0:-1]))
-            stat = list(executor.evaluate(candidates))/fmax
-
+            candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
+            stat = list(executor.evaluate(candidates)) / fmax
             points[n + batch * i:n + batch * (i + 1), -1] = stat[:, 0]
         else:
             with executor() as e:
                 candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
-                points[n+batch*i:n+batch*(i+1), -1] = list(e.map(crit_func, candidates)) / fmax
+                stat = list(e.map(crit_func, candidates)) / fmax
+                points[n + batch * i:n + batch * (i + 1), -1] = stat
 
     points = bb_finalize(points, executor, strategy, fmax, cubetobox)
 

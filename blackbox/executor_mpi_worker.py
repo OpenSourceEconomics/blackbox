@@ -1,14 +1,15 @@
 #!/usr/bin/env python
+"""This script provides all capabilities for the slave processes."""
 import pickle as pkl
 import numpy as np
 
 from mpi4py import MPI
 
-
 comm = MPI.Comm.Get_parent()
 num_slaves, rank = comm.Get_size(), comm.Get_rank()
 
 crit_func = pkl.load(open('.crit_func.blackbox.pkl', 'rb'))
+comm.Send([np.array(1), MPI.DOUBLE], dest=0, tag=rank)
 
 num_free = np.array(0, dtype='int32')
 comm.Bcast([num_free, MPI.INT], root=0)
