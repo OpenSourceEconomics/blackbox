@@ -1,0 +1,12 @@
+name: blackbox
+
+dependencies:
+  - python=3.6
+  - numpy
+  - pytest
+  - pytest-xdist
+  - scipy
+  - flake8
+  - mpi4py
+  - pip:
+    - pyDOE

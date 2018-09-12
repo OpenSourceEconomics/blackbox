@@ -1,10 +1,6 @@
 """This module hosts all auxiliary functions for running the BLACKBOX algorithm."""
 import pickle as pkl
-import datetime
 import warnings
-import shutil
-import glob
-import os
 
 import scipy.optimize as op
 import numpy as np
@@ -58,71 +54,6 @@ def latin(n, d):
 
     return lh
 
-
-class AggregatorCls(object):
-
-    def __init__(self):
-        """Constructor for the aggregation manager."""
-        self.attr = dict()
-        self.attr['fun_step'] = None
-        self.attr['num_step'] = 0
-        self.attr['num_eval'] = 0
-
-    def run(self, e):
-        """This function constantly checks for the best evaluation point."""
-        fname = 'blackbox_best/smm_estimation/smm_monitoring.pkl'
-        self.attr['fun_step'] = pkl.load(open(fname, 'rb'))['Current'].ix[0]
-
-        # We need to set up the logging with the baseline information from the starting values.
-        fmt_record = ' {:>25}{:>25.5f}{:>25.5f}{:>25}{:>25}\n'
-
-        with open('blackbox.respy.log', 'w') as outfile:
-            fmt_ = ' {:>25}{:>25}{:>25}{:>25}{:>25}\n\n'
-            outfile.write(fmt_.format(*['Time', 'Criterion', 'Best', 'Evaluation', 'Step']))
-            time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            line = list()
-            line += [time, self.attr['fun_step'], self.attr['fun_step']]
-            line += [self.attr['num_eval'], self.attr['num_step']]
-            outfile.write(fmt_record.format(*line))
-
-        self.attr['num_eval'] += 1
-
-        # This setup ensures that a complete check of all directories is done after the algorithm
-        # concludes. Otherwise, this might be terminated in an intermediate step.
-        while not e.is_set():
-            self._collect_information()
-        else:
-            self._collect_information()
-
-    def _collect_information(self):
-        """This method iterates over the BLACKBOX directories."""
-        fmt_record = ' {:>25}{:>25.5f}{:>25.5f}{:>25}{:>25}\n'
-
-        for dirname in glob.glob('blackbox_*'):
-            if dirname in ['blackbox_best']:
-                continue
-
-            if os.path.exists(dirname + '/.ready.blackbox.info'):
-                fname = dirname + '/smm_estimation/smm_monitoring.pkl'
-                candidate = pkl.load(open(fname, 'rb'))['Current'].ix[0]
-                if candidate < self.attr['fun_step']:
-                    shutil.rmtree('blackbox_best')
-                    shutil.copytree(dirname, 'blackbox_best')
-                    self.attr['fun_step'] = candidate
-                    self.attr['num_step'] += 1
-
-                shutil.rmtree(dirname)
-
-                # Update real-time logging
-                with open('blackbox.respy.log', 'a') as outfile:
-                    time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    line = []
-                    line += [time, candidate, self.attr['fun_step']]
-                    line += [self.attr['num_eval'], self.attr['num_step']]
-                    outfile.write(fmt_record.format(*line))
-                self.attr['num_eval'] += 1
-
-
 def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
     """This function fits the approximate model."""
 
@@ -140,22 +71,6 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
         points[n + i * batch + j, 0:-1] = np.copy(minfit.x)
 
     return points
-
-
-def cleanup(is_start=False):
-    """This module cleans the BLACKBOX directories."""
-    for dirname in glob.glob('blackbox_*'):
-        if not is_start and 'best' in dirname:
-            continue
-        shutil.rmtree(dirname)
-
-    fname = 'blackbox.respy.csv'
-    if is_start and os.path.exists(fname):
-        os.remove(fname)
-
-    fname = '.est_obj.blackbox.pkl'
-    if os.path.exists(fname):
-        os.remove(fname)
 
 
 def rbf(points, T):
