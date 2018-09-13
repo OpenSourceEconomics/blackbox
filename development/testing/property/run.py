@@ -1,26 +1,17 @@
-from scipy.optimize import rosen
-import numpy as np
+#!/usr/bin/env python
+"""This script allows to create and run the regression test."""
+from blackbox.tests.test_blackbox import *
 
-from blackbox.algorithm import search as pei_search
-from ov_tools.tests.material.blackbox_original import search as bb_search
-from blackbox.auxiliary import get_executor
+for i in range(1000):
 
-open('.blackbox.testing.python', 'a').close()
+    print(' ... iteration ', str(i), '\n\n')
 
-for _ in range(10):
-    d = np.random.randint(2, 5)
-    box = [[-10., 10.]] * d
+    test_1()
 
-    n = d + np.random.randint(5, 10)
-    m = np.random.randint(5, 25)
-    batch = np.random.randint(1, 5)
+    test_3()
 
-    np.random.seed(123)
-    alg_original = bb_search(rosen, box, n, m, batch, resfile='output.csv')  # text file where
+    test_4()
 
-    executor = get_executor('mp')
+    test_6()
 
-    np.random.seed(123)
-    alg_revised = pei_search(rosen, box, n, m, batch, executor, 'mp', 'blackbox.respy.csv')
-
-    np.testing.assert_almost_equal(alg_original, alg_revised)
+    test_7()

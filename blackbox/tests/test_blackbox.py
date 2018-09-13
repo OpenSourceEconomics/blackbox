@@ -64,9 +64,8 @@ def test_3():
     # Unfortunately, there will be small differences when using the FORTRAN implementation
     # of selected functions. However, this test always passes when the PYTHON versions are
     # used. I test all implementations against each other in other tests and as the interface
-    # is identical, I am confident that the discrepancies here are only due to small
-    # numerical differences in the PYTHON and FORTRAN calculations that accumulate if all are
-    # used at once.
+    # is identical, I am confident that the discrepancies here are only due to small numerical
+    # differences in the PYTHON and FORTRAN calculations that accumulate if all are used at once.
     open(PYTHON_FNAME, 'a').close()
 
     d, box, n, m, batch, strategy = get_valid_request()
@@ -77,6 +76,8 @@ def test_3():
     alg_revised = search(rosen, box, n, m, batch, strategy, legacy=True)
 
     np.testing.assert_almost_equal(alg_original, alg_revised)
+
+    os.remove(PYTHON_FNAME)
 
 
 def test_4():
@@ -111,6 +112,9 @@ def test_4():
 
             for i in range(3):
                 np.testing.assert_almost_equal(rslt[i], rslt_base[i])
+
+            if os.path.exists(PYTHON_FNAME):
+                os.remove(PYTHON_FNAME)
 
 
 @pytest.mark.xfail(reason='... minor numerical differences accumulate over many iterations.')
@@ -155,7 +159,7 @@ def test_7():
     """This test runs flake8 to ensure the code quality. However, this is only relevant during
     development."""
     try:
-        import flake8    # noqa: F401
+        import flake8  # noqa: F401
     except ImportError:
         return None
 

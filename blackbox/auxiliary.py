@@ -1,5 +1,6 @@
 """This module hosts all auxiliary functions for running the BLACKBOX algorithm."""
 from functools import partial
+import multiprocessing as mp
 import pickle as pkl
 import warnings
 
@@ -9,7 +10,6 @@ import numpy as np
 from blackbox.replacements_interface import get_capital_phi
 from blackbox.replacements_interface import spread
 from blackbox.executor_mpi import mpi_executor
-from blackbox.executor_mp import mp_executor
 
 
 def cubetobox_full(box, d, x):
@@ -138,7 +138,7 @@ def get_executor(strategy, num_free=None, batch=None, crit_func=None):
         pkl.dump(crit_func, open('.crit_func.blackbox.pkl', 'wb'))
         executor = mpi_executor(batch, num_free)
     elif strategy == 'mp':
-        executor = mp_executor()
+        executor = mp.Pool
     else:
         raise NotImplementedError
 

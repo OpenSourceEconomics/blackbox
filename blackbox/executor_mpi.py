@@ -72,6 +72,6 @@ class _MpiPool(object):
         for rank in range(batch):
             func = np.zeros(1, dtype='float')
             comm.Recv([func, MPI.DOUBLE], source=rank, tag=MPI.ANY_TAG)
-            funcs.append(func)
+            funcs.append(func[0])
 
         return funcs

@@ -73,13 +73,13 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
 
     # initial sampling
     for i in range(n // batch):
+        candidates = list(map(cubetobox, points[batch * i:batch * (i + 1), 0:-1]))
         if strategy == 'mpi':
-            candidates = list(map(cubetobox, points[batch * i:batch * (i + 1), 0:-1]))
-            points[batch * i:batch * (i + 1), -1] = executor.evaluate(candidates)
+            stat = executor.evaluate(candidates)
         else:
             with executor() as e:
-                candidates = list(map(cubetobox, points[batch * i:batch * (i + 1), 0:-1]))
-                points[batch * i:batch * (i + 1), -1] = list(e.map(crit_func, candidates))
+                stat = list(e.map(crit_func, candidates))
+        points[batch * i:batch * (i + 1), -1] = stat
 
     # normalizing function values
     fmax = max(abs(points[:, -1]))
@@ -103,7 +103,7 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
     # subsequent iterations (current subsequent iteration = i*batch+j)
     T = np.identity(d)
 
-    for i in range(m//batch):
+    for i in range(m // batch):
 
         # refining scaling matrix T
         if d > 1:
@@ -130,15 +130,13 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
         # the meantime?
         points = fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points)
 
+        candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
         if strategy == 'mpi':
-            candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
-            stat = list(executor.evaluate(candidates)) / fmax
-            points[n + batch * i:n + batch * (i + 1), -1] = stat[:, 0]
+            stat = list(executor.evaluate(candidates))
         else:
             with executor() as e:
-                candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
-                stat = list(e.map(crit_func, candidates)) / fmax
-                points[n + batch * i:n + batch * (i + 1), -1] = stat
+                stat = list(e.map(crit_func, candidates))
+        points[n + batch * i:n + batch * (i + 1), -1] = stat / fmax
 
     points = bb_finalize(points, executor, strategy, fmax, cubetobox)
 

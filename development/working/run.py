@@ -9,7 +9,4 @@ m = 10
 strategy = 'mp'
 batch = 20
 
-cProfile.run('search(rosen, box, n, m, batch, strategy)', 'test.prof')
-
-p = pstats.Stats("test.prof")
-p.strip_dirs().sort_stats('cumulative').print_stats()
+search(rosen, box, n, m, batch, 'mpi')
