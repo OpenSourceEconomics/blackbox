@@ -1,6 +1,10 @@
 TODO
 ====
 
+* We need to add the ability to restart the algorithm after its initial exploration of the function at least.
+
+* We need to add the ability for a gentle termination of the process.
+
 * We need to polish the codes overall.
 
 * We need to tackle the performance bottleneck in fit_approx_model().

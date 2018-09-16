@@ -6,6 +6,7 @@ import pyDOE
 from blackbox.replacements_interface import fit_full
 from blackbox.auxiliary import fit_approx_model
 from blackbox.auxiliary import cubetobox_full
+from blackbox.auxiliary import evaluate_batch
 from blackbox.auxiliary import get_executor
 from blackbox.auxiliary import bb_finalize
 from blackbox.auxiliary import latin
@@ -74,11 +75,7 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
     # initial sampling
     for i in range(n // batch):
         candidates = list(map(cubetobox, points[batch * i:batch * (i + 1), 0:-1]))
-        if strategy == 'mpi':
-            stat = executor.evaluate(candidates)
-        else:
-            with executor() as e:
-                stat = list(e.map(crit_func, candidates))
+        stat = evaluate_batch(strategy, executor, crit_func, candidates)
         points[batch * i:batch * (i + 1), -1] = stat
 
     # normalizing function values
@@ -131,11 +128,7 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
         points = fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points)
 
         candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
-        if strategy == 'mpi':
-            stat = list(executor.evaluate(candidates))
-        else:
-            with executor() as e:
-                stat = list(e.map(crit_func, candidates))
+        stat = evaluate_batch(strategy, executor, crit_func, candidates)
         points[n + batch * i:n + batch * (i + 1), -1] = stat / fmax
 
     points = bb_finalize(points, executor, strategy, fmax, cubetobox)

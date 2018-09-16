@@ -12,6 +12,16 @@ from blackbox.replacements_interface import spread
 from blackbox.executor_mpi import mpi_executor
 
 
+def evaluate_batch(strategy, executor, crit_func, candidates):
+    """This function evaluates the batch with the available executor."""
+    if strategy == 'mpi':
+        stat = executor.evaluate(candidates)
+    else:
+        with executor() as e:
+            stat = list(e.map(crit_func, candidates))
+    return stat
+
+
 def cubetobox_full(box, d, x):
     """This function transfers the points back to their original sizes."""
     rslt = list()
