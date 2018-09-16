@@ -1,4 +1,5 @@
 from functools import partial
+import pickle as pkl
 
 import numpy as np
 import pyDOE
@@ -14,7 +15,7 @@ from blackbox.auxiliary import rbf
 
 
 def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0.5, p=1.0,
-           nrand=10000, nrand_frac=0.05):
+           nrand=10000, nrand_frac=0.05, is_restart=False):
     """
     Minimize given expensive black-box function and save results into text file.
 
@@ -45,6 +46,9 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
         Allows the user to use various parallelisation tools
         as dask.distributed or pathos.
     """
+    # TODO: We need a setup where we check all input parameters of the request that no subsequent
+    # termination is possible.
+
     if seed is not None:
         np.random.seed(seed)
 
@@ -65,26 +69,36 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
     # We are ready to define the auxiliary functions.
     cubetobox = partial(cubetobox_full, box, d)
 
-    # generating latin hypercube
-    points = np.zeros((n, d + 1))
-    if not legacy:
-        points[:, 0:-1] = pyDOE.lhs(d, samples=n)
+    if not is_restart:
+
+        # generating latin hypercube
+        points = np.zeros((n, d + 1))
+        if not legacy:
+            points[:, 0:-1] = pyDOE.lhs(d, samples=n)
+        else:
+            points[:, 0:-1] = latin(n, d)
+
+        # initial sampling
+        for i in range(n // batch):
+            candidates = list(map(cubetobox, points[batch * i:batch * (i + 1), 0:-1]))
+            stat = evaluate_batch(strategy, executor, crit_func, candidates)
+            points[batch * i:batch * (i + 1), -1] = stat
+
+        # normalizing function values
+        fmax = max(abs(points[:, -1]))
+
+        if fmax == 0.0:
+            raise NotImplementedError
+
+        points[:, -1] = points[:, -1] / fmax
+
+        pkl.dump(points, open('exploration.blackbox.pkl', 'wb'))
+
     else:
-        points[:, 0:-1] = latin(n, d)
 
-    # initial sampling
-    for i in range(n // batch):
-        candidates = list(map(cubetobox, points[batch * i:batch * (i + 1), 0:-1]))
-        stat = evaluate_batch(strategy, executor, crit_func, candidates)
-        points[batch * i:batch * (i + 1), -1] = stat
-
-    # normalizing function values
-    fmax = max(abs(points[:, -1]))
-
-    if fmax == 0.0:
-        raise NotImplementedError
-
-    points[:, -1] = points[:, -1] / fmax
+        # TODO: We need to add tests that this is a proper restart by at least checking the
+        # number of free parameters, not nan, etc.
+        points = pkl.load(open('exploration.blackbox.pkl', 'wb'))
 
     # This allows to request a simple search on a random grid.
     if m == 0:
@@ -120,11 +134,11 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
         lam, b, a = rbf(points, T)
         fit = partial(fit_full, lam, b, a, T, points[:, 0:-1])
 
-        points = np.append(points, np.zeros((batch, d + 1)), axis=0)
         # TODO: THe approximation depends on the batch size, Maybe it is a good idea to split
         # number of points for approximation and batch size by using a queue instead.
         # TODO: This is scalar at this point, other cores could evaluate other random points in
         # the meantime?
+        points = np.append(points, np.zeros((batch, d + 1)), axis=0)
         points = fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points)
 
         candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
