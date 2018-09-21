@@ -48,6 +48,9 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
     """
     # TODO: We need a setup where we check all input parameters of the request that no subsequent
     # termination is possible.
+    import os
+    if os.path.exists("fitting.blackbox.log"):
+        os.remove("fitting.blackbox.log")
 
     if seed is not None:
         np.random.seed(seed)

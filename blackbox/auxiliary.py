@@ -75,25 +75,45 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
     def constraint_full(k, r, x):
         return np.linalg.norm(np.subtract(x, points[k, 0:-1])) - r
 
-    for j in range(batch):
-        r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (v1 * (n + i * batch + j)))
-        r **= (1. / d)
+    # We try to learn more about the performance problems.
+    fname = 'fitting.blackbox.log'
+    import os
 
-        # We need to construct a full set of bounds.
-        cons = list()
-        for k in range(n + i * batch + j):
-            constraint = partial(constraint_full, k, r)
-            cons.append({'type': 'ineq', 'fun': constraint})
+    if not os.path.exists(fname):
+        os.mknod(fname)
+    import datetime
 
-        bounds = [[0.0, 1.0]] * d
+    with open(fname, 'a') as outfile:
 
-        while True:
-            start = np.random.rand(d)
-            rslt_x = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons).x
-            if not np.isnan(rslt_x)[0]:
-                break
+        now = datetime.datetime.now()
+        outfile.write('\n\n Starting on new badge ' + now.strftime("%H:%M:%S") + '\n')
 
-        points[n + i * batch + j, 0:-1] = np.copy(rslt_x)
+        for j in range(batch):
+            outfile.write('    Starting on new point ' + now.strftime("%H:%M:%S") + '\n')
+
+            r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (v1 * (n + i * batch + j)))
+            r **= (1. / d)
+
+            # We need to construct a full set of bounds.
+            cons = list()
+            for k in range(n + i * batch + j):
+                constraint = partial(constraint_full, k, r)
+                cons.append({'type': 'ineq', 'fun': constraint})
+
+            bounds = [[0.0, 1.0]] * d
+
+            count = 1
+            while True:
+                start = np.random.rand(d)
+                rslt_x = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons).x
+                if not np.isnan(rslt_x)[0]:
+                    break
+                count += 1
+
+            outfile.write('    Finished on new point ' + now.strftime("%H:%M:%S") + ' after ' +
+                          str(count) + ' attempts \n\n')
+
+            points[n + i * batch + j, 0:-1] = np.copy(rslt_x)
 
     return points
 
