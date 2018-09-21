@@ -89,6 +89,8 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
         outfile.write('\n\n Starting on new badge ' + now.strftime("%H:%M:%S") + '\n')
 
         for j in range(batch):
+
+            now = datetime.datetime.now()
             outfile.write('    Starting on new point ' + now.strftime("%H:%M:%S") + '\n')
 
             r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (v1 * (n + i * batch + j)))
@@ -110,6 +112,7 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
                     break
                 count += 1
 
+            now = datetime.datetime.now()
             outfile.write('    Finished on new point ' + now.strftime("%H:%M:%S") + ' after ' +
                           str(count) + ' attempts \n\n')
 
