@@ -97,6 +97,7 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
             r **= (1. / d)
 
             # We need to construct a full set of bounds.
+            # TODO: NOte that the bounds are a direct function of the explorative function calls n.
             cons = list()
             for k in range(n + i * batch + j):
                 constraint = partial(constraint_full, k, r)
