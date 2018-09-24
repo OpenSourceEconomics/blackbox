@@ -95,13 +95,19 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
 
         points[:, -1] = points[:, -1] / fmax
 
-        pkl.dump(points, open('exploration.blackbox.pkl', 'wb'))
+        # Prepare information for potential restart.
+        restart_material = dict()
+        restart_material['points'] = points
+        restart_material['fmax'] = fmax
+
+        pkl.dump(restart_material, open('restart.blackbox.pkl', 'wb'))
 
     else:
 
         # TODO: We need to add tests that this is a proper restart by at least checking the
         # number of free parameters, not nan, etc.
-        points = pkl.load(open('exploration.blackbox.pkl', 'rb'))
+        restart_material = pkl.load(open('restart.blackbox.pkl', 'rb'))
+        points, fmax = restart_material['points'], restart_material['fmax']
 
     # This allows to request a simple search on a random grid.
     if m == 0:

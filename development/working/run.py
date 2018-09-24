@@ -10,4 +10,4 @@ m = 10
 strategy = 'mp'
 batch = 2
 
-search(rosen, box, n, m, batch, 'mpi')
+search(rosen, box, n, m, batch, strategy)

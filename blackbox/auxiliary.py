@@ -105,19 +105,17 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
 
             bounds = [[0.0, 1.0]] * d
 
-            count = 1
-            while True:
-                start = np.random.rand(d)
-                rslt_x = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons).x
-                if not np.isnan(rslt_x)[0]:
-                    break
-                count += 1
+            # TODO: The original code allows for repeated attempts for the SLSQP routine.
+            # However, this was not ever required in production.
+            start = np.random.rand(d)
+            rslt = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons)
+
 
             now = datetime.datetime.now()
-            outfile.write('    Finished on new point ' + now.strftime("%H:%M:%S") + ' after ' +
-                          str(count) + ' attempts \n\n')
+            outfile.write('    Finished on new point ' + now.strftime("%H:%M:%S"))
+            outfile.write('\n\n' + str(rslt) + '\n\n')
 
-            points[n + i * batch + j, 0:-1] = np.copy(rslt_x)
+            points[n + i * batch + j, 0:-1] = np.copy(rslt.x)
 
     return points
 
