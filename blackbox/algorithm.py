@@ -101,7 +101,7 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
 
         # TODO: We need to add tests that this is a proper restart by at least checking the
         # number of free parameters, not nan, etc.
-        points = pkl.load(open('exploration.blackbox.pkl', 'wb'))
+        points = pkl.load(open('exploration.blackbox.pkl', 'rb'))
 
     # This allows to request a simple search on a random grid.
     if m == 0:
