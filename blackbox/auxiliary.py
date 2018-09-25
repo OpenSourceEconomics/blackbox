@@ -8,6 +8,7 @@ import scipy.optimize as op
 import numpy as np
 
 from blackbox.replacements_interface import get_capital_phi
+from blackbox.replacements_interface import constraint_full
 from blackbox.replacements_interface import spread
 from blackbox.executor_mpi import mpi_executor
 
@@ -72,9 +73,6 @@ def latin(n, d):
 
 def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
     """This function fits the approximate model."""
-    def constraint_full(k, r, x):
-        return np.linalg.norm(np.subtract(x, points[k, 0:-1])) - r
-
     # We try to learn more about the performance problems.
     fname = 'fitting.blackbox.log'
     import os
@@ -100,7 +98,7 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
             # TODO: NOte that the bounds are a direct function of the explorative function calls n.
             cons = list()
             for k in range(n + i * batch + j):
-                constraint = partial(constraint_full, k, r)
+                constraint = partial(constraint_full, points, r, k)
                 cons.append({'type': 'ineq', 'fun': constraint})
 
             bounds = [[0.0, 1.0]] * d
@@ -109,7 +107,6 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
             # However, this was not ever required in production.
             start = np.random.rand(d)
             rslt = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons)
-
 
             now = datetime.datetime.now()
             outfile.write('    Finished on new point ' + now.strftime("%H:%M:%S"))

@@ -11,6 +11,7 @@ import pytest
 
 from blackbox.tests.material.blackbox_original import search as bb_search
 from blackbox.replacements_interface import get_capital_phi
+from blackbox.replacements_interface import constraint_full
 from blackbox.tests.auxiliary import get_valid_request
 from blackbox.replacements_interface import fit_full
 from blackbox.replacements_interface import spread
@@ -92,26 +93,30 @@ def test_4():
 
         mat, eval_points = np.identity(d), np.random.rand(d)
         lam, b, a = rbf(points, mat)
+        k = np.random.choice(range(n))
+        r = np.random.uniform()
+        x = np.random.uniform(size=d)
 
-        rslt_base = None
+        rslts_base = None
         for is_python in [True, False]:
 
             if is_python:
                 open(PYTHON_FNAME, 'a').close()
 
-            rslt = list()
-            rslt.append(fit_full(lam, b, a, mat, points[:, 0:-1], eval_points))
-            rslt.append(get_capital_phi(points[:, 0:-1], mat, n, d))
-            rslt.append(spread(points[:, 0:-1], n, d))
+            rslts = list()
+            rslts.append(fit_full(lam, b, a, mat, points[:, 0:-1], eval_points))
+            rslts.append(constraint_full(points, r, k, x))
+            rslts.append(get_capital_phi(points[:, 0:-1], mat, n, d))
+            rslts.append(spread(points[:, 0:-1], n, d))
 
             if os.path.exists(PYTHON_FNAME):
                 os.remove(PYTHON_FNAME)
 
-            if rslt_base is None:
-                rslt_base = rslt
+            if rslts_base is None:
+                rslts_base = rslts
 
-            for i in range(3):
-                np.testing.assert_almost_equal(rslt[i], rslt_base[i])
+            for i, rslt in enumerate(rslts):
+                np.testing.assert_almost_equal(rslt, rslts_base[i])
 
             if os.path.exists(PYTHON_FNAME):
                 os.remove(PYTHON_FNAME)

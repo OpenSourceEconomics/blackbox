@@ -20,3 +20,7 @@ def pyth_fit_full(lam, b, a, T, points, x):
 def pyth_get_capital_phi(points, T, n, d):
     return [[phi(np.linalg.norm(np.dot(T, np.subtract(points[i, :], points[j, :])))) for j in
              range(n)] for i in range(n)]
+
+
+def pyth_constraint_full(point, r, x):
+    return np.linalg.norm(np.subtract(x, point)) - r

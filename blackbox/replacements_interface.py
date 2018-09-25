@@ -4,10 +4,12 @@ testing."""
 import os
 
 from blackbox.replacements_pyth import pyth_get_capital_phi
+from blackbox.replacements_pyth import pyth_constraint_full
 from blackbox.replacements_pyth import pyth_fit_full
 from blackbox.replacements_pyth import pyth_spread
 
 from blackbox.replacements_f2py import f2py_get_capital_phi
+from blackbox.replacements_f2py import f2py_constraint_full
 from blackbox.replacements_f2py import f2py_fit_full
 from blackbox.replacements_f2py import f2py_spread
 
@@ -22,7 +24,7 @@ def spread(points, n, d):
 
 
 def fit_full(lam, b, a, T, points, x):
-    """This is the interface to the different """
+    """This is the interface to the different."""
     if os.path.exists('.blackbox.testing.python'):
         rslt = pyth_fit_full(lam, b, a, T, points, x)
     else:
@@ -36,4 +38,13 @@ def get_capital_phi(points, T, n, d):
         rslt = pyth_get_capital_phi(points, T, n, d)
     else:
         rslt = f2py_get_capital_phi(points, T, n, d)
+    return rslt
+
+
+def constraint_full(points, r, k, x):
+    """This is the interface to the different implementations fo the constraint functions."""
+    if os.path.exists('.blackbox.testing.python'):
+        rslt = pyth_constraint_full(points[k, 0:-1], r, x)
+    else:
+        rslt = f2py_constraint_full(points[k, 0:-1], r, x)
     return rslt
