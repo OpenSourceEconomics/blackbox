@@ -4,6 +4,8 @@ SUBROUTINE f2py_spread(rslt, points, n, d)
 
     !/* setup                   */
 
+    USE blackbox
+
     IMPLICIT NONE
 
     DOUBLE PRECISION, INTENT(OUT)   :: rslt
@@ -13,19 +15,11 @@ SUBROUTINE f2py_spread(rslt, points, n, d)
 
     DOUBLE PRECISION, INTENT(IN)    :: points(n, d)
 
-    INTEGER                         :: j
-    INTEGER                         :: i
-
 !-------------------------------------------------------------------------------
 ! Algorithm
 !-------------------------------------------------------------------------------
 
-    rslt = 0.0
-    DO i = 1, n
-        DO j = 1, i - 1
-            rslt = rslt + 1.0 / NORM2(points(i, :) - points(j, :))
-        END DO
-    END DO
+    CALL spread(rslt, points, n, d)
 
 END SUBROUTINE
 !*******************************************************************************
@@ -33,6 +27,8 @@ END SUBROUTINE
 SUBROUTINE f2py_get_capital_phi(rslt, points, T, n, d)
 
     !/* setup                   */
+
+    USE blackbox
 
     IMPLICIT NONE
 
@@ -44,22 +40,11 @@ SUBROUTINE f2py_get_capital_phi(rslt, points, T, n, d)
     INTEGER, INTENT(IN)             :: d
     INTEGER, INTENT(IN)             :: n
 
-    DOUBLE PRECISION                :: substract(d)
-
-    INTEGER                         :: i
-    INTEGER                         :: j
-
 !-------------------------------------------------------------------------------
 ! Algorithm
 !-------------------------------------------------------------------------------
 
-    rslt = -99.0
-    DO i = 1, n
-        DO j = 1, n
-            substract(:) = points(i, :) - points(j, :)
-            rslt(i, j) = NORM2(MATMUL(T, substract)) ** 3
-        END DO
-    END DO
+    CALL get_capital_phi(rslt, points, T, n, d)
 
 END SUBROUTINE
 !*******************************************************************************
@@ -67,6 +52,7 @@ END SUBROUTINE
 SUBROUTINE f2py_fit_full(rslt, lam, b, a, T, points, x)
 
     !/* setup                   */
+    USE blackbox
 
     IMPLICIT NONE
 
@@ -79,30 +65,20 @@ SUBROUTINE f2py_fit_full(rslt, lam, b, a, T, points, x)
     DOUBLE PRECISION, INTENT(IN)    :: b(:)
     DOUBLE PRECISION, INTENT(IN)    :: a(:)
 
-    DOUBLE PRECISION                :: substr(SIZE(T, 1))
-    DOUBLE PRECISION                :: incr(1)
-
-    INTEGER                         :: i
-
 !-------------------------------------------------------------------------------
 ! Algorithm
 !-------------------------------------------------------------------------------
 
-    incr = MATMUL(b, x) + a
-
-    rslt = 0.0
-    DO i = 1, SIZE(lam)
-        substr = x(:, 1) - points(i, :)
-        rslt = rslt + lam(i) * NORM2(MATMUL(T, substr)) ** 3
-    END DO
-    rslt = rslt + incr(1)
+    rslt = fit_full(lam, b, a, T, points, x)
 
 END SUBROUTINE
-!*******************************************************************************
-!*******************************************************************************
+!***************************************************************************************************
+!***************************************************************************************************
 SUBROUTINE f2py_constraint_full(rslt, point, r, x)
 
     !/* setup                   */
+
+    USE blackbox
 
     IMPLICIT NONE
 
@@ -112,12 +88,33 @@ SUBROUTINE f2py_constraint_full(rslt, point, r, x)
     DOUBLE PRECISION, INTENT(IN)    :: x(:)
     DOUBLE PRECISION, INTENT(IN)    :: r
 
-!-------------------------------------------------------------------------------
+!---------------------------------------------------------------------------------------------------
 ! Algorithm
-!-------------------------------------------------------------------------------
+!---------------------------------------------------------------------------------------------------
 
-    rslt = NORM2(x - point) - r
+    CALL constraint(rslt, point, r, x)
 
 END SUBROUTINE
-!*******************************************************************************
-!*******************************************************************************
+!***************************************************************************************************
+!***************************************************************************************************
+SUBROUTINE f2py_minimize_slsqp(x, r, points)
+
+    !/* setup                   */
+
+    USE blackbox
+
+    IMPLICIT NONE
+
+    DOUBLE PRECISION, INTENT(IN)    :: x(:)
+    DOUBLE PRECISION, INTENT(IN)    :: r
+    DOUBLE PRECISION, INTENT(IN)    :: points(:, :)
+
+!---------------------------------------------------------------------------------------------------
+! Algorithm
+!---------------------------------------------------------------------------------------------------
+
+    CALL minimize_slsqp(x, r, points)
+
+END SUBROUTINE
+!***************************************************************************************************
+!***************************************************************************************************

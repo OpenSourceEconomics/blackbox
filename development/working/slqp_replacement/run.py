@@ -1,15 +1,43 @@
 import pickle as pkl
 from functools import partial
 import numpy as np
-from blackbox.replacements_interface import constraint_full, fit_full
 from scipy.optimize import minimize
 from blackbox.auxiliary import rbf
 import datetime
-#
-# restart_dict = pkl.load(open('restart.blackbox.pkl', 'rb'))
-#
-# points = restart_dict['points']
-#
+import blackbox.replacements_f2py as f2py
+
+
+from blackbox.tests.material.blackbox_original import search as bb_search
+from blackbox.replacements_interface import get_capital_phi
+from blackbox.replacements_interface import constraint_full
+from blackbox.tests.auxiliary import get_valid_request
+from blackbox.replacements_interface import fit_full
+from blackbox.replacements_interface import spread
+from blackbox.tests.auxiliary import EXECUTORS
+from blackbox.algorithm import latin
+from blackbox.auxiliary import rbf
+from blackbox import PACKAGE_DIR
+from blackbox import search
+
+restart_dict = pkl.load(open('restart.blackbox.pkl', 'rb'))
+points = restart_dict['points']
+
+
+
+
+for _ in range(1000):
+
+    d, _, n, _, _, _ = get_valid_request()
+    points = np.zeros((n, d + 1))
+    points[:, 0:-1] = latin(n, d)
+    r = np.random.uniform() + 0.01
+    d = points.shape[1] - 1
+    mat, x = np.identity(d), np.random.rand(d)
+    lam, b, a = rbf(points, mat)
+    T = mat
+
+    f2py.f2py_minimize_slsqp(x, r, points[:,0:-1], lam, b, a, T)
+
 # n = points.shape[0]
 # r = 0.3
 # d = points.shape[1] - 1
@@ -40,7 +68,3 @@ import datetime
 # now = datetime.datetime.now()
 # print(rslt)
 # print('end ', now.strftime("%H:%M:%S"))
-
-
-from replacements_f2py import minimize_slsqp
-minimize_slsqp(np.random.uniform(size=5), 5)
