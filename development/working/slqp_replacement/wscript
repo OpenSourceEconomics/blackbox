@@ -28,13 +28,14 @@ def configure(ctx):
 
 def build(ctx):
 
-    ctx.add_group()
-    src = ['shared_constants.f90', 'slsqp.f', 'slsqp_interface.f90']
+    #ctx.add_group()
+    #src = ['shared_constants.f90', 'slsqp.f', 'slsqp_interface.f90']
     #src = ['slsqp_interface.f90']
 
-    ctx(features=['fc', 'fcstlib'], source=src, target='slsqp_library', fcflags=['-fPIC'])
+    #ctx(features=['fc', 'fcstlib'], source=src, target='slsqp_library', fcflags=['-fPIC'])
 
-    ctx.add_group()
+
+    #ctx.add_group()
 
     import os
     print(os.getcwd())
