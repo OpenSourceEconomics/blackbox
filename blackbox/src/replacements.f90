@@ -7,19 +7,15 @@ MODULE replacements
     IMPLICIT NONE
 
 CONTAINS
-
 !***************************************************************************************************
 !***************************************************************************************************
-SUBROUTINE spread(rslt, points, n, d)
+SUBROUTINE spread(rslt, points)
 
     !/* setup                   */
 
     REAL(our_dble), INTENT(OUT)   :: rslt
 
-    INTEGER(our_int), INTENT(IN)             :: d
-    INTEGER(our_int), INTENT(IN)             :: n
-
-    REAL(our_dble), INTENT(IN)    :: points(n, d)
+    REAL(our_dble), INTENT(IN)    :: points(num_points, num_params)
 
     INTEGER(our_int)                         :: j
     INTEGER(our_int)                         :: i
@@ -29,7 +25,7 @@ SUBROUTINE spread(rslt, points, n, d)
 !-------------------------------------------------------------------------------
 
     rslt = 0.0
-    DO i = 1, n
+    DO i = 1, num_points
         DO j = 1, i - 1
             rslt = rslt + 1.0 / NORM2(points(i, :) - points(j, :))
         END DO
@@ -38,19 +34,16 @@ SUBROUTINE spread(rslt, points, n, d)
 END SUBROUTINE
 !***************************************************************************************************
 !***************************************************************************************************
-SUBROUTINE get_capital_phi(rslt, points, T, n, d)
+SUBROUTINE get_capital_phi(rslt, points, T)
 
     !/* setup                   */
 
-    REAL(our_dble), INTENT(OUT)   :: rslt(n, n)
+    REAL(our_dble), INTENT(OUT)   :: rslt(num_points, num_points)
 
-    REAL(our_dble), INTENT(IN)    :: points(n, d)
-    REAL(our_dble), INTENT(IN)    :: T(d, d)
+    REAL(our_dble), INTENT(IN)    :: points(num_points, num_params)
+    REAL(our_dble), INTENT(IN)    :: T(num_params, num_params)
 
-    INTEGER(our_int), INTENT(IN)             :: d
-    INTEGER(our_int), INTENT(IN)             :: n
-
-    REAL(our_dble)                :: substract(d)
+    REAL(our_dble)                :: substract(num_params)
 
     INTEGER(our_int)                         :: i
     INTEGER(our_int)                         :: j
@@ -60,8 +53,8 @@ SUBROUTINE get_capital_phi(rslt, points, T, n, d)
 !---------------------------------------------------------------------------------------------------
 
     rslt = -99.0
-    DO i = 1, n
-        DO j = 1, n
+    DO i = 1, num_points
+        DO j = 1, num_points
             substract(:) = points(i, :) - points(j, :)
             rslt(i, j) = NORM2(MATMUL(T, substract)) ** 3
         END DO
@@ -76,27 +69,27 @@ FUNCTION fit_full(lam, b, a, T, points, x) RESULT(rslt)
 
     REAL(our_dble)   :: rslt
 
-    REAL(our_dble), INTENT(IN)    :: points(:, :)
-    REAL(our_dble), INTENT(IN)    :: x(:, :)
-    REAL(our_dble), INTENT(IN)    :: T(:, :)
-    REAL(our_dble), INTENT(IN)    :: lam(:)
-    REAL(our_dble), INTENT(IN)    :: b(:)
-    REAL(our_dble), INTENT(IN)    :: a(:)
+    REAL(our_dble), INTENT(IN)    :: points(num_points, num_params)
+    REAL(our_dble), INTENT(IN)    :: x(num_params)
+    REAL(our_dble), INTENT(IN)    :: T(num_params,  num_params)
+    REAL(our_dble), INTENT(IN)    :: lam(num_points)
+    REAL(our_dble), INTENT(IN)    :: b(num_params)
+    REAL(our_dble), INTENT(IN)    :: a
 
     REAL(our_dble)                :: substr(SIZE(T, 1))
-    REAL(our_dble)                :: incr(1)
+    REAL(our_dble)                :: incr(1), x_extended(SIZE(x), 1)
 
     INTEGER(our_int)                         :: i
 
-!-------------------------------------------------------------------------------
-! Algorithm
-!-------------------------------------------------------------------------------
-
-    incr = MATMUL(b, x) + a
+    !-----------------------------------------------------------------------------------------------
+    ! Algorithm
+    !-----------------------------------------------------------------------------------------------
+    x_extended(:, 1) = x
+    incr = MATMUL(b, x_extended) + a
 
     rslt = 0.0
     DO i = 1, SIZE(lam)
-        substr = x(:, 1) - points(i, :)
+        substr = x(:) - points(i, :)
         rslt = rslt + lam(i) * NORM2(MATMUL(T, substr)) ** 3
     END DO
     rslt = rslt + incr(1)
@@ -110,8 +103,8 @@ SUBROUTINE constraint(rslt, point, r, x)
 
     REAL(our_dble), INTENT(OUT)   :: rslt
 
-    REAL(our_dble), INTENT(IN)    :: point(:)
-    REAL(our_dble), INTENT(IN)    :: x(:)
+    REAL(our_dble), INTENT(IN)    :: point(num_params)
+    REAL(our_dble), INTENT(IN)    :: x(num_params)
     REAL(our_dble), INTENT(IN)    :: r
 
 !-------------------------------------------------------------------------------
@@ -156,13 +149,13 @@ SUBROUTINE minimize_slsqp(x, r, points, lam, b, a_ext, T)
 
  !   INTEGER, INTENT(IN)             :: d
 
-    DOUBLE PRECISION, INTENT(IN)    :: x(:)
+    DOUBLE PRECISION, INTENT(INOUT)    :: x(:)
     DOUBLE PRECISION, INTENT(IN)    :: points(:, :), r
 
-    REAL(our_dble), INTENT(IN)    :: T(:, :)
-    REAL(our_dble), INTENT(IN)    :: lam(:)
-    REAL(our_dble), INTENT(IN)    :: b(:)
-    REAL(our_dble), INTENT(IN)    :: a_ext(:)
+        REAL(our_dble), INTENT(IN)    :: T(:, :)
+        REAL(our_dble), INTENT(IN)    :: lam(:)
+        REAL(our_dble), INTENT(IN)    :: b(:)
+        REAL(our_dble), INTENT(IN)    :: a_ext
 
 
  !   INTEGER                         :: j
@@ -194,7 +187,6 @@ SUBROUTINE minimize_slsqp(x, r, points, lam, b, a_ext, T)
 !-------------------------------------------------------------------------------
 ! Algorithm
 !-------------------------------------------------------------------------------
-    PRINT *, 'test'
 
     ! Some basic setup
     n = SIZE(x)
@@ -213,10 +205,10 @@ SUBROUTINE minimize_slsqp(x, r, points, lam, b, a_ext, T)
     ALLOCATE(XL(n), XU(n), x_iter(n))
 
     MEQ = zero_int
-    N1= N+1
+    N1= N + 1
     LA = MAX(1, M)
-    MINEQ= M-MEQ+N1+N1
 
+    MINEQ= M - MEQ + N1 + N1
 
     LEN_W = (3 * N1 + M)*(N1 + 1) + (N1 - MEQ + 1) * (MINEQ + 2) + 2 * MINEQ
     LEN_W = LEN_W + (N1 + MINEQ) * (N1 - MEQ) + 2 * MEQ + N1  + (N + 1) * N / 2 + 2 * M + 3 * N
@@ -242,13 +234,120 @@ SUBROUTINE minimize_slsqp(x, r, points, lam, b, a_ext, T)
     x_iter = x
 
     ! We evaluate the criterion function at the starting values.
-    f = fit_full(lam, b, a_ext, T, points, x)
-
-    ! We evaluate the constraint at the starting valures.
     c = get_all_constraints(points, r, x, num_constraints)
+    f = fit_full(lam, b, a_ext, T, points, x)
+    G(1:SIZE(x)) = derivative_function(x, lam, b, a_ext, T, points)
+    A(:,:SIZE(x)) = derivative_constraints(points, r, x, num_constraints)
 
-    CALL SLSQP(m, meq, la, n, x_iter, xl, xu, f, c, g, a, acc, iter, mode, W, LEN_W, JW, LEN_JW)
+    ! Iterate until completion
+        DO WHILE (.NOT. is_finished)
+            ! Evaluate criterion function and constraints
+            IF (mode .EQ. one_int) THEN
+                c = get_all_constraints(points, r, x, num_constraints)
+                f = fit_full(lam, b, a_ext, T, points, x)
+            ELSEIF (mode .EQ. - one_int) THEN
+                G(1:SIZE(x)) = derivative_function(x, lam, b, a_ext, T, points)
+                A(:,:SIZE(x)) = derivative_constraints(points, r, x, num_constraints)
+            END IF
+
+            CALL SLSQP(m, meq, la, n, x_iter, xl, xu, f, c, g, a, acc, iter, mode, W, LEN_W, JW, LEN_JW)
+
+            ! Check if SLSQP has completed
+            IF (.NOT. ABS(mode) .EQ. one_int) THEN
+                    is_finished = .True.
+                END IF
+
+        END DO
+
+        x = x_iter
 
 END SUBROUTINE
+!***************************************************************************************************
+!***************************************************************************************************
+! TODO: This can be tested f2py
+FUNCTION derivative_function(x, lam, b, a_ext, T, points) RESULT(rslt)
 
+        REAL(our_dble), INTENT(IN)    :: T(:, :)
+        REAL(our_dble), INTENT(IN)    :: lam(:)
+        REAL(our_dble), INTENT(IN)    :: b(:)
+        REAL(our_dble), INTENT(IN)    :: a_ext
+
+
+        REAL(our_dble), INTENT(IN)    :: x(:)
+        REAL(our_dble), INTENT(IN)    :: points(:, :)
+
+        REAL(our_dble) :: rslt(SIZE(x)), ei(SIZE(x)), f0, d(SIZE(x)), eps_der_approx = 1e-6, f1
+
+        INTEGER(our_int)    :: num_free, j
+
+
+        num_free = SIZE(x)
+
+        ! Initialize containers
+        ei = zero_dble
+
+        ! Evaluate baseline
+        f0 = fit_full(lam, b, a_ext, T, points, x)
+
+        DO j = 1, num_free
+
+            ei(j) = one_dble
+
+            d = eps_der_approx * ei
+
+            f1 = fit_full(lam, b, a_ext, T, points, x + d)
+
+            rslt(j) = (f1 - f0) / d(j)
+
+            ei(j) = zero_dble
+
+        END DO
+
+END FUNCTION
+!***************************************************************************************************
+!***************************************************************************************************
+! TODO: This can be tested f2py
+FUNCTION derivative_constraints(points, r, x, num_constraints) RESULT(rslt)
+
+    REAL(our_dble)  :: constraints(num_constraints)
+
+    REAL(our_dble), INTENT(IN)      :: points(:, :)
+    REAL(our_dble), INTENT(IN)      :: x(:)
+    REAL(our_dble), INTENT(IN)      :: r
+
+    INTEGER(our_int), INTENT(IN)    :: num_constraints
+
+
+        REAL(our_dble) :: rslt(num_constraints, SIZE(x)), ei(SIZE(x)), f0(num_constraints), d(SIZE(x)), eps_der_approx = 1e-6, f1(num_constraints)
+
+        INTEGER(our_int)    :: num_free, j
+
+
+        num_free = SIZE(x)
+
+        ! Initialize containers
+        ei = zero_dble
+
+        ! Evaluate baseline
+
+
+        f0 = get_all_constraints(points, r, x, num_constraints)
+
+        DO j = 1, num_free
+
+            ei(j) = one_dble
+
+            d = eps_der_approx * ei
+
+            f1 = get_all_constraints(points, r, x + d, num_constraints)
+
+            rslt(:, j) = (f1 - f0) / d(j)
+
+            ei(j) = zero_dble
+
+        END DO
+
+END FUNCTION
+!***************************************************************************************************
+!***************************************************************************************************
 END MODULE
