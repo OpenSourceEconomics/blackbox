@@ -22,7 +22,6 @@ MODULE shared_constants
 
     REAL(our_dble)              :: eps_der_approx = 1e-6
 
-
     ! Variables that need to be aligned across FORTRAN and PYTHON implementations.
     INTEGER(our_int), PARAMETER :: MISSING_INT                  = -99_our_int
 !******************************************************************************
