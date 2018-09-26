@@ -1,9 +1,11 @@
 """This module contains all functions for testing the BLACKBOX algorithm."""
 from subprocess import CalledProcessError
+from functools import partial
 import pickle as pkl
 import subprocess
 import os
 
+from scipy.optimize import approx_fprime
 from scipy.optimize import rosen
 import numpy as np
 import socket
@@ -14,8 +16,10 @@ from blackbox.replacements_interface import get_capital_phi
 from blackbox.replacements_interface import constraint_full
 from blackbox.tests.auxiliary import get_valid_request
 from blackbox.replacements_interface import fit_full
+from blackbox.replacements_pyth import pyth_fit_full
 from blackbox.replacements_interface import spread
 from blackbox.tests.auxiliary import EXECUTORS
+from blackbox import replacements_f2py
 from blackbox.algorithm import latin
 from blackbox.auxiliary import rbf
 from blackbox import PACKAGE_DIR
@@ -88,7 +92,7 @@ def test_4():
 
         d, _, n, _, _, _ = get_valid_request()
 
-        points = np.zeros((n, d + 1))
+        points = np.random.uniform(size=(n, d + 1))
         points[:, 0:-1] = latin(n, d)
 
         mat, eval_points = np.identity(d), np.random.rand(d)
@@ -176,3 +180,25 @@ def test_7():
     except CalledProcessError:
         os.chdir(cwd)
         raise CalledProcessError
+
+
+def test_8():
+    """This test function compares the output from the F2PY functions to their PYTHON
+    counterparts. These are only used in the FORTRAN codes and only exposed through F2PY for
+    testing purposes."""
+    for _ in range(100):
+
+        d, _, n, _, _, _ = get_valid_request()
+
+        points = np.random.uniform(size=(n, d + 1))
+        points[:, 0:-1] = latin(n, d)
+
+        mat, eval_points = np.identity(d), np.random.rand(d)
+        lam, b, a = rbf(points, mat)
+        x = np.random.uniform(size=d)
+
+        # We test the derivative calculation of the criterion function.
+        args = [lam, b, a, mat, points[:, :-1]]
+        pyth = approx_fprime(x, partial(pyth_fit_full, *args), epsilon=1e-6)
+        fort = replacements_f2py.f2py_derivative_function(x, *args + [n, d])
+        np.testing.assert_almost_equal(fort, pyth)

@@ -122,20 +122,22 @@ FUNCTION get_all_constraints(points, r, x, num_constraints) result(constraints)
 
     REAL(our_dble)  :: constraints(num_constraints)
 
-    REAL(our_dble), INTENT(IN)      :: points(:, :)
-    REAL(our_dble), INTENT(IN)      :: x(:)
+    REAL(our_dble), INTENT(IN)      :: points(num_points, num_params)
+    REAL(our_dble), INTENT(IN)      :: x(num_params)
     REAL(our_dble), INTENT(IN)      :: r
 
     INTEGER(our_int), INTENT(IN)    :: num_constraints
 
+    REAL(our_dble)                  :: point(num_params)
     INTEGER(our_int)                :: i
 
-!-------------------------------------------------------------------------------
-! Algorithm
-!-------------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------------------------
+    ! Algorithm
+    !-----------------------------------------------------------------------------------------------
 
     DO i = 1, num_constraints
-        CALL constraint(constraints(i), points(i, :), r, x)
+        point = points(i, :)
+        CALL constraint(constraints(i), point, r, x)
     END DO
 
 END FUNCTION
@@ -156,10 +158,6 @@ SUBROUTINE minimize_slsqp(x, r, points, lam, b, a_ext, T)
         REAL(our_dble), INTENT(IN)    :: lam(:)
         REAL(our_dble), INTENT(IN)    :: b(:)
         REAL(our_dble), INTENT(IN)    :: a_ext
-
-
- !   INTEGER                         :: j
-!    INTEGER                         :: i
 
     ! TODO: These are wrkspace dimensions.
     INTEGER     :: LEN_W, LEN_JW, LA
@@ -194,9 +192,8 @@ SUBROUTINE minimize_slsqp(x, r, points, lam, b, a_ext, T)
 
 
     ! TODO: move outside
-
-    ITER = 10
-    ACC = 10e-6
+    ITER = 100
+    ACC = 1E-6
     mode = zero_int
     M = num_constraints
 
@@ -236,72 +233,77 @@ SUBROUTINE minimize_slsqp(x, r, points, lam, b, a_ext, T)
     ! We evaluate the criterion function at the starting values.
     c = get_all_constraints(points, r, x, num_constraints)
     f = fit_full(lam, b, a_ext, T, points, x)
-    G(1:SIZE(x)) = derivative_function(x, lam, b, a_ext, T, points)
-    A(:,:SIZE(x)) = derivative_constraints(points, r, x, num_constraints)
+    G(1:num_params) = derivative_function(x, lam, b, a_ext, T, points)
+    A(:,:num_params) = derivative_constraints(points, r, x, num_constraints)
 
     ! Iterate until completion
-        DO WHILE (.NOT. is_finished)
-            ! Evaluate criterion function and constraints
-            IF (mode .EQ. one_int) THEN
-                c = get_all_constraints(points, r, x, num_constraints)
-                f = fit_full(lam, b, a_ext, T, points, x)
-            ELSEIF (mode .EQ. - one_int) THEN
-                G(1:SIZE(x)) = derivative_function(x, lam, b, a_ext, T, points)
-                A(:,:SIZE(x)) = derivative_constraints(points, r, x, num_constraints)
+    DO WHILE (.NOT. is_finished)
+        ! Evaluate criterion function and constraints
+        IF (mode .EQ. one_int) THEN
+            c = get_all_constraints(points, r, x_iter, num_constraints)
+            f = fit_full(lam, b, a_ext, T, points, x_iter)
+        ELSEIF (mode .EQ. - one_int) THEN
+            G(1:num_params) = derivative_function(x_iter, lam, b, a_ext, T, points)
+            A(:,:num_params) = derivative_constraints(points, r, x_iter, num_constraints)
+        END IF
+
+        CALL SLSQP(m, meq, la, n, x_iter, xl, xu, f, c, g, a, acc, iter, mode, W, LEN_W, JW, LEN_JW)
+
+        ! TODO: Stabilization as in a rare number of cases the SLSQP routine returns NAN.
+        IF (ANY(ISNAN(X))) THEN
+            mode = 17
+        END IF
+
+        ! Check if SLSQP has completed
+        IF (.NOT. ABS(mode) .EQ. one_int) THEN
+                is_finished = .True.
             END IF
 
-            CALL SLSQP(m, meq, la, n, x_iter, xl, xu, f, c, g, a, acc, iter, mode, W, LEN_W, JW, LEN_JW)
+    END DO
 
-            ! Check if SLSQP has completed
-            IF (.NOT. ABS(mode) .EQ. one_int) THEN
-                    is_finished = .True.
-                END IF
-
-        END DO
-
-        x = x_iter
+    ! We only replace the starting values with the final values if the optimization was successful.
+    IF(mode .EQ. zero_int) x = x_iter
 
 END SUBROUTINE
 !***************************************************************************************************
 !***************************************************************************************************
-! TODO: This can be tested f2py
-FUNCTION derivative_function(x, lam, b, a_ext, T, points) RESULT(rslt)
+! TODO:  more flexible function setup, that I only pass in a different function each time.
+FUNCTION derivative_function(x, lam, b, a, T, points) RESULT(rslt)
 
-        REAL(our_dble), INTENT(IN)    :: T(:, :)
-        REAL(our_dble), INTENT(IN)    :: lam(:)
-        REAL(our_dble), INTENT(IN)    :: b(:)
-        REAL(our_dble), INTENT(IN)    :: a_ext
+    REAL(our_dble), INTENT(IN)      :: points(num_points, num_params)
+    REAL(our_dble), INTENT(IN)      :: T(num_params, num_params)
+    REAL(our_dble), INTENT(IN)      :: lam(num_points)
+    REAL(our_dble), INTENT(IN)      :: x(num_params)
+    REAL(our_dble), INTENT(IN)      :: b(num_params)
+    REAL(our_dble), INTENT(IN)      :: a
 
+    REAL(our_dble)                  :: rslt(num_params)
+    REAL(our_dble)                  :: ei(num_params)
+    REAL(our_dble)                  :: d(num_params)
+    REAL(our_dble)                  :: f0
+    REAL(our_dble)                  :: f1
 
-        REAL(our_dble), INTENT(IN)    :: x(:)
-        REAL(our_dble), INTENT(IN)    :: points(:, :)
+    INTEGER(our_int)                :: j
 
-        REAL(our_dble) :: rslt(SIZE(x)), ei(SIZE(x)), f0, d(SIZE(x)), eps_der_approx = 1e-6, f1
+    !-----------------------------------------------------------------------------------------------
+    ! Algorithm
+    !-----------------------------------------------------------------------------------------------
+    ei = zero_dble
+    f0 = fit_full(lam, b, a, T, points, x)
 
-        INTEGER(our_int)    :: num_free, j
+    DO j = 1, num_params
 
+        ei(j) = one_dble
 
-        num_free = SIZE(x)
+        d = eps_der_approx * ei
 
-        ! Initialize containers
-        ei = zero_dble
+        f1 = fit_full(lam, b, a, T, points, x + d)
 
-        ! Evaluate baseline
-        f0 = fit_full(lam, b, a_ext, T, points, x)
+        rslt(j) = (f1 - f0) / d(j)
 
-        DO j = 1, num_free
+        ei(j) = zero_dble
 
-            ei(j) = one_dble
-
-            d = eps_der_approx * ei
-
-            f1 = fit_full(lam, b, a_ext, T, points, x + d)
-
-            rslt(j) = (f1 - f0) / d(j)
-
-            ei(j) = zero_dble
-
-        END DO
+    END DO
 
 END FUNCTION
 !***************************************************************************************************
@@ -309,21 +311,17 @@ END FUNCTION
 ! TODO: This can be tested f2py
 FUNCTION derivative_constraints(points, r, x, num_constraints) RESULT(rslt)
 
-    REAL(our_dble)  :: constraints(num_constraints)
-
-    REAL(our_dble), INTENT(IN)      :: points(:, :)
-    REAL(our_dble), INTENT(IN)      :: x(:)
+    REAL(our_dble), INTENT(IN)      :: points(num_points, num_params)
+    REAL(our_dble), INTENT(IN)      :: x(num_params)
     REAL(our_dble), INTENT(IN)      :: r
 
     INTEGER(our_int), INTENT(IN)    :: num_constraints
 
 
-        REAL(our_dble) :: rslt(num_constraints, SIZE(x)), ei(SIZE(x)), f0(num_constraints), d(SIZE(x)), eps_der_approx = 1e-6, f1(num_constraints)
+        REAL(our_dble) :: rslt(num_constraints, num_params), ei(num_params), f0(num_constraints), d(num_params),   f1(num_constraints)
 
-        INTEGER(our_int)    :: num_free, j
+        INTEGER(our_int)    :: j
 
-
-        num_free = SIZE(x)
 
         ! Initialize containers
         ei = zero_dble
@@ -333,7 +331,7 @@ FUNCTION derivative_constraints(points, r, x, num_constraints) RESULT(rslt)
 
         f0 = get_all_constraints(points, r, x, num_constraints)
 
-        DO j = 1, num_free
+        DO j = 1, num_params
 
             ei(j) = one_dble
 

@@ -2,12 +2,15 @@ import os
 
 from numpy import f2py
 
-GFORTRAN_FLAGS_DEBUG = []
-GFORTRAN_FLAGS_DEBUG += ['-O', '-Wall', '-Wline-truncation', '-Wsurprising', '-Waliasing']
-GFORTRAN_FLAGS_DEBUG += ['-Wunused-parameter', '-fwhole-file', '-fcheck=all']
-GFORTRAN_FLAGS_DEBUG += ['-fbacktrace', '-g', '-fmax-errors=1', '-ffree-line-length-0']
-GFORTRAN_FLAGS_DEBUG += ['-cpp', '-Wcharacter-truncation', '-Wimplicit-interface']
-args = ' '.join(GFORTRAN_FLAGS_DEBUG)
+FLAGS_DEBUG = []
+FLAGS_DEBUG += ['-O', '-Wall', '-Wline-truncation', '-Wsurprising', '-Waliasing']
+FLAGS_DEBUG += ['-Wunused-parameter', '-fwhole-file', '-fcheck=all']
+FLAGS_DEBUG += ['-fbacktrace', '-g', '-fmax-errors=1', '-ffree-line-length-0']
+FLAGS_DEBUG += ['-cpp', '-Wcharacter-truncation', '-Wimplicit-interface']
+
+FLAGS_PRODUCTION = ['-O3', '-ffree-line-length-0']
+
+args = ' '.join(FLAGS_PRODUCTION)
 
 os.chdir('src')
 
