@@ -195,10 +195,9 @@ def test_8():
 
         mat, eval_points = np.identity(d), np.random.rand(d)
         lam, b, a = rbf(points, mat)
-        x = np.random.uniform(size=d)
 
         # We test the derivative calculation of the criterion function.
         args = [lam, b, a, mat, points[:, :-1]]
-        pyth = approx_fprime(x, partial(pyth_fit_full, *args), epsilon=1e-6)
-        fort = replacements_f2py.f2py_derivative_function(x, *args + [n, d])
+        pyth = approx_fprime(eval_points, partial(pyth_fit_full, *args), epsilon=1e-6)
+        fort = replacements_f2py.f2py_derivative_function(eval_points, *args + [n, d])
         np.testing.assert_almost_equal(fort, pyth)

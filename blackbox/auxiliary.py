@@ -9,6 +9,7 @@ import numpy as np
 
 from blackbox.replacements_interface import get_capital_phi
 from blackbox.replacements_interface import constraint_full
+from blackbox.replacements_interface import fit_full
 from blackbox.replacements_interface import spread
 from blackbox.executor_mpi import mpi_executor
 
@@ -71,29 +72,23 @@ def latin(n, d):
     return lh
 
 
-def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
+def fit_approx_model(batch, rho0, n, m, v1, T, i, d, p, points, legacy):
     """This function fits the approximate model."""
-    # We try to learn more about the performance problems.
-    fname = 'fitting.blackbox.log'
-    import os
+    lam, b, a = rbf(points, T)
 
-    if not os.path.exists(fname):
-        os.mknod(fname)
-    import datetime
+    # TODO: THis is just terrible, attaching to function and then extending before use.
+    fit = partial(fit_full, lam, b, a, T, points[:, 0:-1])
+    n_before_ext = points.shape[0]
+    points = np.append(points, np.zeros((batch, d + 1)), axis=0)
 
-    with open(fname, 'a') as outfile:
+    for j in range(batch):
 
-        now = datetime.datetime.now()
-        outfile.write('\n\n Starting on new badge ' + now.strftime("%H:%M:%S") + '\n')
+        r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (v1 * (n + i * batch + j)))
+        r **= (1. / d)
 
-        for j in range(batch):
+        start = np.random.rand(d)
 
-            now = datetime.datetime.now()
-            outfile.write('    Starting on new point ' + now.strftime("%H:%M:%S") + '\n')
-
-            r = ((rho0 * ((m - 1. - (i * batch + j)) / (m - 1.)) ** p) / (v1 * (n + i * batch + j)))
-            r **= (1. / d)
-
+        if legacy:
             # We need to construct a full set of bounds.
             # TODO: NOte that the bounds are a direct function of the explorative function calls n.
             cons = list()
@@ -105,14 +100,13 @@ def fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points):
 
             # TODO: The original code allows for repeated attempts for the SLSQP routine.
             # However, this was not ever required in production.
-            start = np.random.rand(d)
-            rslt = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons)
+            x = op.minimize(fit, start, method='SLSQP', bounds=bounds, constraints=cons).x
+        else:
+            import blackbox.replacements_f2py as f2py
+            x = f2py.f2py_minimize_slsqp(start, r, points[:n_before_ext, 0:-1], lam, b, a, T, d,
+                                         n_before_ext)
 
-            now = datetime.datetime.now()
-            outfile.write('    Finished on new point ' + now.strftime("%H:%M:%S"))
-            outfile.write('\n\n' + str(rslt) + '\n\n')
-
-            points[n + i * batch + j, 0:-1] = np.copy(rslt.x)
+        points[n + i * batch + j, 0:-1] = np.copy(x)
 
     return points
 

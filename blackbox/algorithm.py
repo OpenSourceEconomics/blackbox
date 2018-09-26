@@ -48,10 +48,6 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
     """
     # TODO: We need a setup where we check all input parameters of the request that no subsequent
     # termination is possible.
-    import os
-    if os.path.exists("fitting.blackbox.log"):
-        os.remove("fitting.blackbox.log")
-
     if seed is not None:
         np.random.seed(seed)
 
@@ -139,16 +135,11 @@ def search(crit_func, box, n, m, batch, strategy, seed=123, legacy=False, rho0=0
             T = [eigvec[:, j] / np.sqrt(eigval[j]) for j in range(d)]
             T = T / np.linalg.norm(T)
 
-        # sampling next batch of points
-        lam, b, a = rbf(points, T)
-        fit = partial(fit_full, lam, b, a, T, points[:, 0:-1])
-
         # TODO: THe approximation depends on the batch size, Maybe it is a good idea to split
         # number of points for approximation and batch size by using a queue instead.
         # TODO: This is scalar at this point, other cores could evaluate other random points in
         # the meantime?
-        points = np.append(points, np.zeros((batch, d + 1)), axis=0)
-        points = fit_approx_model(batch, rho0, n, m, v1, fit, i, d, p, points)
+        points = fit_approx_model(batch, rho0, n, m, v1, T, i, d, p, points, legacy)
 
         candidates = list(map(cubetobox, points[n + batch * i:n + batch * (i + 1), 0:-1]))
         stat = evaluate_batch(strategy, executor, crit_func, candidates)
